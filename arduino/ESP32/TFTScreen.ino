@@ -25,12 +25,16 @@ typedef struct {
 
 
 Slider SLIDERS[]{
-    {0, 40, MOTORS_MIN_RPM, MOTORS_MAX_RPM, motorTopRpm, 500, "Top M RPM:", {}, {}, sw},
-    {0, 100, MOTORS_MIN_RPM, MOTORS_MAX_RPM, motorBotRpm, 500, "Bottom M RPM:", {}, {}, sw},
+    {0, 45, MOTORS_MIN_RPM, MOTORS_MAX_RPM, motorTopRpm, 500, "Top M RPM:", {}, {}, sw},
+    {0, 105, MOTORS_MIN_RPM, MOTORS_MAX_RPM, motorBotRpm, 500, "Bottom M RPM:", {}, {}, sw},
 };
 
 
-uint16_t t_x = 9999, t_y = 9999;  // To store the touch coordinates.
+// Button to stop all motors.
+Button stopMotorsBtn = { 199, 0, 40, 39, "S", TFT_WHITE, TFT_RED };
+
+
+uint16_t tX = 9999, tY = 9999;  // To store the touch coordinates.
 
 
 // Function declarations are needed here because of the arduino ide auto-prototype generation.
@@ -38,7 +42,7 @@ void makeSlider(Slider& slider);
 void drawSliderValue(Slider& slider);
 void setSliderValue(Slider& slider, int newValue);
 void drawButton(Button& btn);
-bool buttonClicked(Button& btn, uint16_t x, uint16_t y);
+bool buttonClicked(Button& btn);
 
 
 /// @brief Setup TFT screen and draw initial ui.
@@ -59,14 +63,14 @@ void initTFTScreen() {
 
 /// @brief Draw the static UI on the TFT screen.
 void drawUi() {
-    // TODO: drawMenuBar();
-
     drawControlsView();
 }
 
 
 /// @brief Draw the controls needed to control the machine manually.
 void drawControlsView() {
+    drawButton(stopMotorsBtn);
+
     int numOfSliders = sizeof(SLIDERS) / sizeof(SLIDERS[0]);
 
     for (int i = 0; i < numOfSliders; i++) {
@@ -158,12 +162,10 @@ void makeSlider(Slider& slider) {
 
 /// @brief Check if a button is clicked or not.
 /// @param btn The button to check.
-/// @param x X location of the click.
-/// @param y Y location of the click.
 /// @return A boolean whether the button is pressed or not.
-bool buttonClicked(Button& btn, uint16_t x, uint16_t y) {
-    if ((x > btn.x) && (x < (btn.x + btn.w))) {
-        if ((y > btn.y) && (y <= (btn.y + btn.h))) {
+bool buttonClicked(Button& btn) {
+    if ((tX > btn.x) && (tX < (btn.x + btn.w))) {
+        if ((tY > btn.y) && (tY <= (btn.y + btn.h))) {
             return true;
         }
     }
@@ -195,8 +197,17 @@ void handleTFTScreenTouch() {
     static uint32_t scanTime = millis();
 
     if (millis() - scanTime >= 20) {
-        if (tft.getTouch(&t_x, &t_y, 250)) {
+        if (tft.getTouch(&tX, &tY, 250)) {
             int numOfSliders = sizeof(SLIDERS) / sizeof(SLIDERS[0]);
+
+            if (buttonClicked(stopMotorsBtn)) {
+                for (int i = 0; i < numOfSliders; i++) {
+                    setSliderValue(SLIDERS[i], 0);
+                }
+
+                return;
+            }
+
 
             for (int i = 0; i < numOfSliders; i++) {
                 // Converting the slider position to a value between -slider.maxValue to +slider.maxValue.
@@ -205,16 +216,16 @@ void handleTFTScreenTouch() {
                 // Remove remainder to make slider value move in exact steps.
                 int roundedValue = sliderValue - (sliderValue % SLIDERS[i].step);
 
-                if (SLIDERS[i].slider.checkTouch(t_x, t_y)) {
+                if (SLIDERS[i].slider.checkTouch(tX, tY)) {
                     SLIDERS[i].value = roundedValue;
                     drawSliderValue(SLIDERS[i]);
                 }
 
                 // Handle slider increment and decrement buttons.
-                if (buttonClicked(SLIDERS[i].btn1, t_x, t_y)) {
+                if (buttonClicked(SLIDERS[i].btn1)) {
                     setSliderValue(SLIDERS[i], SLIDERS[i].value + SLIDERS[i].step);
                 }
-                if (buttonClicked(SLIDERS[i].btn2, t_x, t_y)) {
+                if (buttonClicked(SLIDERS[i].btn2)) {
                     setSliderValue(SLIDERS[i], SLIDERS[i].value - SLIDERS[i].step);
                 }
             }
