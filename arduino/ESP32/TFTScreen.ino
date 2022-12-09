@@ -80,8 +80,8 @@ void drawControlsView() {
 void drawSliderValue(Slider& slider) {
     tft.setTextColor(TFT_WHITE, TFT_BLUE);
     tft.setTextSize(1);
-    tft.setTextPadding(44);
-    tft.drawNumber(slider.value, slider.x + 160 - 5, slider.y + 1);
+    tft.setTextPadding(55);
+    tft.drawNumber(slider.value, slider.x + 144, slider.y + 1);
     tft.setTextPadding(0);
 }
 
