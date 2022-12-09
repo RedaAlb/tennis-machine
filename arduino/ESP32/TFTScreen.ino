@@ -25,8 +25,8 @@ typedef struct {
 
 
 Slider SLIDERS[]{
-    {0, 40, MOTORS_MIN_RPM, MOTORS_MAX_RPM, motorTopRpm, 100, "Top M RPM:", {}, {}, sw},
-    {0, 100, MOTORS_MIN_RPM, MOTORS_MAX_RPM, motorBotRpm, 100, "Bottom M RPM:", {}, {}, sw},
+    {0, 40, MOTORS_MIN_RPM, MOTORS_MAX_RPM, motorTopRpm, 500, "Top M RPM:", {}, {}, sw},
+    {0, 100, MOTORS_MIN_RPM, MOTORS_MAX_RPM, motorBotRpm, 500, "Bottom M RPM:", {}, {}, sw},
 };
 
 
@@ -80,8 +80,8 @@ void drawControlsView() {
 void drawSliderValue(Slider& slider) {
     tft.setTextColor(TFT_WHITE, TFT_BLUE);
     tft.setTextSize(1);
-    tft.setTextPadding(55);
-    tft.drawNumber(slider.value, slider.x + 144, slider.y + 1);
+    tft.setTextPadding(60);
+    tft.drawNumber(slider.value, slider.x + 139, slider.y + 1);
     tft.setTextPadding(0);
 }
 
@@ -152,8 +152,7 @@ void makeSlider(Slider& slider) {
     slider.btn1 = btn1;
     slider.btn2 = btn2;
 
-
-    slider.slider.setSliderPosition(slider.value);
+    setSliderValue(slider, slider.value);
 }
 
 
@@ -177,12 +176,16 @@ bool buttonClicked(Button& btn, uint16_t x, uint16_t y) {
 /// @param slider The slider to change value of.
 /// @param newValue The new slider value.
 void setSliderValue(Slider& slider, int newValue) {
-    if (newValue > slider.maxValue || newValue < 0) {
+    if (newValue > slider.maxValue || newValue < -slider.maxValue) {
         return;
     }
 
     slider.value = newValue;
-    slider.slider.setSliderPosition(newValue);
+
+    // Converting the slider value (-maxValue to maxValue) to a slider position.
+    int sliderPos = (newValue / 2) + (slider.maxValue / 2);
+    slider.slider.setSliderPosition(sliderPos);
+
     drawSliderValue(slider);
 }
 
@@ -196,10 +199,11 @@ void handleTFTScreenTouch() {
             int numOfSliders = sizeof(SLIDERS) / sizeof(SLIDERS[0]);
 
             for (int i = 0; i < numOfSliders; i++) {
-                int sliderPos = SLIDERS[i].slider.getSliderPosition();
+                // Converting the slider position to a value between -slider.maxValue to +slider.maxValue.
+                int sliderValue = (SLIDERS[i].slider.getSliderPosition() - (SLIDERS[i].maxValue / 2)) * 2;
 
-                // Remove remainder to make slider value move in exact increments.
-                int roundedValue = sliderPos - (sliderPos % SLIDERS[i].step);
+                // Remove remainder to make slider value move in exact steps.
+                int roundedValue = sliderValue - (sliderValue % SLIDERS[i].step);
 
                 if (SLIDERS[i].slider.checkTouch(t_x, t_y)) {
                     SLIDERS[i].value = roundedValue;
@@ -208,10 +212,10 @@ void handleTFTScreenTouch() {
 
                 // Handle slider increment and decrement buttons.
                 if (buttonClicked(SLIDERS[i].btn1, t_x, t_y)) {
-                    setSliderValue(SLIDERS[i], roundedValue + SLIDERS[i].step);
+                    setSliderValue(SLIDERS[i], SLIDERS[i].value + SLIDERS[i].step);
                 }
                 if (buttonClicked(SLIDERS[i].btn2, t_x, t_y)) {
-                    setSliderValue(SLIDERS[i], roundedValue - SLIDERS[i].step);
+                    setSliderValue(SLIDERS[i], SLIDERS[i].value - SLIDERS[i].step);
                 }
             }
         }
