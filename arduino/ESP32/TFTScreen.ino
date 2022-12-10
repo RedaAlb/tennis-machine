@@ -17,6 +17,7 @@ typedef struct {
 
 typedef struct {
     int x, y, minValue, maxValue, & value, step;
+    bool useMidpoint;  // To make slider middle value 0, with either side +-maxValue.
     String name;
     Button btn1;
     Button btn2;
@@ -25,8 +26,8 @@ typedef struct {
 
 
 Slider SLIDERS[]{
-    {0, 45, MOTORS_MIN_RPM, MOTORS_MAX_RPM, motorTopRpm, 500, "Top M RPM:", {}, {}, sw},
-    {0, 105, MOTORS_MIN_RPM, MOTORS_MAX_RPM, motorBotRpm, 500, "Bottom M RPM:", {}, {}, sw},
+    {0, 45, MOTORS_MIN_RPM, MOTORS_MAX_RPM, motorTopRpm, 100, true, "Top M RPM:", {}, {}, sw},
+    {0, 105, MOTORS_MIN_RPM, MOTORS_MAX_RPM, motorBotRpm, 100, true, "Bottom M RPM:", {}, {}, sw},
 };
 
 
@@ -178,14 +179,20 @@ bool buttonClicked(Button& btn) {
 /// @param slider The slider to change value of.
 /// @param newValue The new slider value.
 void setSliderValue(Slider& slider, int newValue) {
-    if (newValue > slider.maxValue || newValue < -slider.maxValue) {
+    if (newValue > slider.maxValue ||
+        (!slider.useMidpoint && newValue < slider.minValue) ||
+        (slider.useMidpoint && newValue < -slider.maxValue)) {
         return;
     }
 
     slider.value = newValue;
+    int sliderPos = newValue;
 
-    // Converting the slider value (-maxValue to maxValue) to a slider position.
-    int sliderPos = (newValue / 2) + (slider.maxValue / 2);
+    if (slider.useMidpoint) {
+        // Convert the slider value (-maxValue to maxValue) to a slider position.
+        sliderPos = (newValue / 2) + (slider.maxValue / 2);
+    }
+
     slider.slider.setSliderPosition(sliderPos);
 
     drawSliderValue(slider);
@@ -210,8 +217,12 @@ void handleTFTScreenTouch() {
 
 
             for (int i = 0; i < numOfSliders; i++) {
-                // Converting the slider position to a value between -slider.maxValue to +slider.maxValue.
-                int sliderValue = (SLIDERS[i].slider.getSliderPosition() - (SLIDERS[i].maxValue / 2)) * 2;
+                int sliderValue = SLIDERS[i].slider.getSliderPosition();
+
+                if (SLIDERS[i].useMidpoint) {
+                    // Convert the slider position to a value between -slider.maxValue to +slider.maxValue.
+                    sliderValue = (SLIDERS[i].slider.getSliderPosition() - (SLIDERS[i].maxValue / 2)) * 2;
+                }
 
                 // Remove remainder to make slider value move in exact steps.
                 int roundedValue = sliderValue - (sliderValue % SLIDERS[i].step);
