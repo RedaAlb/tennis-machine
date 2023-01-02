@@ -7,10 +7,6 @@
 # Structure
 
 - `ESP32.ino`, main Arduino sketch.
-- `TFTScreen.ino`, handles anything related to the TFT screen, to get touch input from the user.
+- `LauncherMotors.ino`, two dc motors to launch the tennis balls.
+- `TFTScreen.ino`, TFT screen to get touch input from the user.
 - `Free_Fonts.h`, provided by the `TFT_eSPI` library.
-
-
-# Wiring
-
-- To be added.
