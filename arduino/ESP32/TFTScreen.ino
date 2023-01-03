@@ -33,9 +33,12 @@ Slider SLIDERS[]{
 
 // Button to stop all motors.
 Button stopMotorsBtn = { 199, 0, 40, 39, "S", TFT_WHITE, TFT_RED };
-
+bool stopMotors = false;  // If set to true, it will gradually stop all motors.
+unsigned long prevMillies = 0;
+const int STOP_MOTORS_DELAY = 10;  // How long to wait between each deceleration step in milliseconds.
 
 uint16_t tX = 9999, tY = 9999;  // To store the touch coordinates.
+unsigned long tftScanTime = 0;
 
 
 // Function declarations are needed here because of the arduino ide auto-prototype generation.
@@ -199,22 +202,43 @@ void setSliderValue(Slider& slider, int newValue) {
 }
 
 
-/// @brief Handle all TFT screen touches that the user makes.
-void handleTFTScreenTouch() {
-    static uint32_t scanTime = millis();
+/// @brief Gradually reset all sliders to a value of 0, to prevent braking current spike.
+void resetSliderValues() {
+    int numOfSliders = sizeof(SLIDERS) / sizeof(SLIDERS[0]);
 
-    if (millis() - scanTime >= 20) {
-        if (tft.getTouch(&tX, &tY, 250)) {
-            int numOfSliders = sizeof(SLIDERS) / sizeof(SLIDERS[0]);
-
-            if (buttonClicked(stopMotorsBtn)) {
-                for (int i = 0; i < numOfSliders; i++) {
-                    setSliderValue(SLIDERS[i], 0);
-                }
-
-                return;
+    if ((millis() - prevMillies) > STOP_MOTORS_DELAY) {
+        for (int i = 0; i < numOfSliders; i++) {
+            if (SLIDERS[i].value == 0) {
+                continue;
             }
 
+            if (SLIDERS[i].value > 0) {
+                setSliderValue(SLIDERS[i], SLIDERS[i].value - SLIDERS[i].step);
+            }
+            if (SLIDERS[i].value < 0) {
+                setSliderValue(SLIDERS[i], SLIDERS[i].value + SLIDERS[i].step);
+            }
+        }
+        prevMillies = millis();
+    }
+}
+
+
+/// @brief Handle all TFT screen touches that the user makes.
+void handleTFTScreenTouch() {
+    if (millis() - tftScanTime >= 20) {
+        if (stopMotors) {
+            resetSliderValues();
+        }
+
+        if (tft.getTouch(&tX, &tY, 250)) {
+            stopMotors = false;
+
+            if (buttonClicked(stopMotorsBtn)) {
+                stopMotors = true;  // To start a gradual decrease in slider values.
+            }
+
+            int numOfSliders = sizeof(SLIDERS) / sizeof(SLIDERS[0]);
 
             for (int i = 0; i < numOfSliders; i++) {
                 int sliderValue = SLIDERS[i].slider.getSliderPosition();
@@ -241,6 +265,7 @@ void handleTFTScreenTouch() {
                 }
             }
         }
-        scanTime = millis();
+
+        tftScanTime = millis();
     }
 }
